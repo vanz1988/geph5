@@ -51,15 +51,25 @@ sudo mkdir -p /etc/geph5
 sudo tee /etc/geph5/broker_config.json > /dev/null <<EOF
 {
   "listen": "0.0.0.0:443",
-  "protocol": "geph5",
-  "enable_udp": true,
-  "users": [
-    {
+  "tcp_listen": "0.0.0.0:4433",  
+  "master_secret": "/etc/geph5/master_secret.key",
+  "mizaru_keys": "/etc/geph5/mizaru_keys.key",
+  "postgres_url": "postgres://user:password@localhost:5432/dbname",
+  "postgres_root_cert": null,
+  "bridge_token": "your-bridge-token",
+  "exit_token": "your-exit-token",
+  "puzzle_difficulty": 4,
+  "statsd_addr": null,
+  "openai_key": "your-openai-api-key",
+  "payment_url": "https://your-payment-service-url",
+  "payment_support_secret": "your-support-secret",
+  "influxdb": {
+    "url": "http://localhost:8086",
+    "database": "geph5_metrics",
       "username": "$USER_NAME",
       "password": "$PASSWORD",
       "key": "$KEY"
-    }
-  ]
+ }
 }
 EOF
 
