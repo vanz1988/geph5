@@ -15,17 +15,14 @@ jobs:
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             dir: linux
-            arch: x86_64
           # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             dir: windows
-            arch: x86_64
           # macOS
           - os: macos-latest
             target: x86_64-apple-darwin
             dir: macos
-            arch: x86_64
 
     runs-on: ${{ matrix.os }}
 
@@ -42,7 +39,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-registry-
 
-      - name: Cache cargo git
+      - name: Cache cargo index
         uses: actions/cache@v4
         with:
           path: ~/.cargo/git
@@ -53,17 +50,18 @@ jobs:
       - name: Cache target directory
         uses: actions/cache@v4
         with:
-          path: target
+          path: binaries/geph5-client-gui/target
           key: ${{ runner.os }}-target-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-target-${{ matrix.target }}--
+      # ---------- End cache ----------
 
-      # ---------- OS-specific dependencies ----------
+      # Linux 特有依赖
       - name: Install GUI dependencies (Linux)
         if: ${{ matrix.os == 'ubuntu-24.04' }}
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev pkg-config
 
-      # ---------- Install Rust ----------
+      # 安装 Rust
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -72,53 +70,36 @@ jobs:
           override: true
           target: ${{ matrix.target }}
 
-      # ---------- Build GUI ----------
+      # 构建 GUI 客户端
       - name: Build geph5-client-gui
-        shell: bash
         run: |
-          cd binaries/geph5-client-gui
-          cargo build --release
+          cargo build --release --manifest-path binaries/geph5-client-gui/Cargo.toml
 
-      # ---------- macOS bundle ----------
+      # macOS 特有：打包成 .app
       - name: Bundle macOS app
         if: ${{ matrix.os == 'macos-latest' }}
-        shell: bash
         run: |
-          WORKSPACE_DIR="${{ github.workspace }}"
-          cd "$WORKSPACE_DIR/binaries/geph5-client-gui"
-          ARTIFACT_DIR="$WORKSPACE_DIR/artifacts/${{ matrix.dir }}"
-          mkdir -p "$ARTIFACT_DIR"
-
-          # 安装 cargo-bundle
           cargo install cargo-bundle --locked --version "=0.6.0" || true
+          cargo bundle --release --manifest-path binaries/geph5-client-gui/Cargo.toml
+          mkdir -p "${{ github.workspace }}/artifacts/${{ matrix.dir }}"
+          # cargo-bundle 输出的 .app 名称可能和包名不同，这里用实际路径
+          cp -R target/release/bundle/osx/Geph5.app "${{ github.workspace }}/artifacts/${{ matrix.dir }}/"
 
-          # 打包 .app
-          cargo bundle --release
-
-          # 拷贝生成的 .app 到 artifact 目录
-          APP_SRC="$WORKSPACE_DIR/target/release/bundle/osx/Geph5.app"
-          cp -r "$APP_SRC" "$ARTIFACT_DIR/Geph5.app"
-
-          # 压缩成 zip
-          cd "$ARTIFACT_DIR"
-          ZIP_NAME="Geph5-${{ matrix.dir }}-${{ matrix.arch }}.zip"
-          zip -r "$ZIP_NAME" Geph5.app
-          rm -rf Geph5.app
-
-      # ---------- Linux / Windows move binary ----------
+      # Linux / Windows：移动可执行文件到 artifacts
       - name: Move binaries to artifacts
         if: ${{ matrix.os != 'macos-latest' }}
-        shell: bash
         run: |
           ARTIFACT_DIR="${{ github.workspace }}/artifacts/${{ matrix.dir }}"
           mkdir -p "$ARTIFACT_DIR"
+
+          BINARY_PATH="${{ github.workspace }}/binaries/geph5-client-gui/target/release"
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            cp binaries/geph5-client-gui/target/release/geph5-client-gui.exe "$ARTIFACT_DIR/"
+            cp "$BINARY_PATH/geph5-client-gui.exe" "$ARTIFACT_DIR/"
           else
-            cp binaries/geph5-client-gui/target/release/geph5-client-gui "$ARTIFACT_DIR/"
+            cp "$BINARY_PATH/geph5-client-gui" "$ARTIFACT_DIR/"
           fi
 
-      # ---------- Upload artifact ----------
+      # 上传 artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
