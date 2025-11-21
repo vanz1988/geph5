@@ -75,7 +75,9 @@ jobs:
       - name: Build geph5-client-gui
         run: |
           cargo build --release --manifest-path binaries/geph5-client-gui/Cargo.toml
-          # 调试：列出发布目录的内容，以确认构建是否成功
+          # 打印 target 目录结构
+          ls -alh binaries/geph5-client-gui/target
+          # 检查 release 目录是否存在
           ls -alh binaries/geph5-client-gui/target/release
 
       # macOS 特有：打包成 .app
