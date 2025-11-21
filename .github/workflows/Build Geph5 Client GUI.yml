@@ -77,7 +77,8 @@ jobs:
         shell: bash
         run: |
           WORKSPACE_DIR="${{ github.workspace }}"
-          cargo build --release --manifest-path "$WORKSPACE_DIR/binaries/geph5-client-gui/Cargo.toml"
+          cd "$WORKSPACE_DIR/binaries/geph5-client-gui"
+          cargo build --release
 
       # macOS 特有：打包 .app 并压缩
       - name: Bundle macOS app
@@ -85,10 +86,11 @@ jobs:
         shell: bash
         run: |
           WORKSPACE_DIR="${{ github.workspace }}"
+          cd "$WORKSPACE_DIR/binaries/geph5-client-gui"
           ARTIFACT_DIR="$WORKSPACE_DIR/artifacts/${{ matrix.dir }}"
           mkdir -p "$ARTIFACT_DIR"
           cargo install cargo-bundle --locked --version "=0.6.0" || true
-          cargo bundle --release --manifest-path "$WORKSPACE_DIR/binaries/geph5-client-gui/Cargo.toml"
+          cargo bundle --release
           APP_SRC="$WORKSPACE_DIR/binaries/geph5-client-gui/target/release/bundle/osx/Geph5.app"
           ZIP_NAME="Geph5-${{ matrix.dir }}-${{ matrix.arch }}.zip"
           cp -r "$APP_SRC" "$ARTIFACT_DIR/Geph5.app"
