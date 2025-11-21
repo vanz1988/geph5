@@ -59,9 +59,6 @@ jobs:
         run: |
           cd binaries/geph5-client-gui
           cargo build --release
-          # 调试：列出 target 目录内容，确认是否生成 release 文件
-          ls -alh target/release/ || echo "Release directory not found"
-          ls -alh target/ || echo "Target directory not found"
 
       # 打包成 macOS .app
       - name: Bundle macOS app
@@ -69,16 +66,40 @@ jobs:
           cd binaries/geph5-client-gui
           cargo install cargo-bundle --locked --version "=0.6.0" || true
           cargo bundle --release
-          cd ../..
-          mkdir -p artifacts/macos
-          # 使用更健壮的复制方式
-          if [ -d "binaries/geph5-client-gui/target/release/bundle/osx/Geph5.app" ]; then
-            cp -R binaries/geph5-client-gui/target/release/bundle/osx/Geph5.app artifacts/macos/
-          elif [ -d "binaries/geph5-client-gui/target/release/bundle/macos/Geph5.app" ]; then
-            cp -R binaries/geph5-client-gui/target/release/bundle/macos/Geph5.app artifacts/macos/
+          
+          # 创建 artifacts 目录并复制 .app 文件
+          mkdir -p ../../artifacts/macos
+          
+          # 检查 bundle 文件的实际位置
+          echo "Looking for bundle files:"
+          find . -name "*.app" -type d 2>/dev/null || echo "No .app files found in current dir"
+          find ../.. -name "*.app" -type d 2>/dev/null | head -10 || echo "No .app files found in project"
+          
+          # 从项目根目录的 target 目录复制（根据日志显示的实际位置）
+          if [ -d "../../target/release/bundle/osx/Geph5.app" ]; then
+            echo "Copying from ../../target/release/bundle/osx/Geph5.app"
+            cp -R "../../target/release/bundle/osx/Geph5.app" ../../artifacts/macos/
+          elif [ -d "target/release/bundle/osx/Geph5.app" ]; then
+            echo "Copying from target/release/bundle/osx/Geph5.app"
+            cp -R "target/release/bundle/osx/Geph5.app" ../../artifacts/macos/
+          elif [ -d "../../target/release/bundle/macos/Geph5.app" ]; then
+            echo "Copying from ../../target/release/bundle/macos/Geph5.app"
+            cp -R "../../target/release/bundle/macos/Geph5.app" ../../artifacts/macos/
           else
-            echo "Looking for bundle files:"
-            find binaries/geph5-client-gui/target -name "*.app" -type d 2>/dev/null || echo "No .app files found"
+            echo "Error: Could not find Geph5.app bundle"
+            find ../.. -name "Geph5.app" -type d 2>/dev/null || echo "Geph5.app not found anywhere"
+            exit 1
+          fi
+
+      # 验证 artifact
+      - name: Verify artifact
+        run: |
+          echo "Artifacts directory contents:"
+          ls -la artifacts/macos/
+          if [ -d "artifacts/macos/Geph5.app" ]; then
+            echo "✅ Geph5.app successfully created!"
+          else
+            echo "❌ Geph5.app not found in artifacts"
             exit 1
           fi
 
