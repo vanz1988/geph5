@@ -54,6 +54,7 @@ jobs:
           key: ${{ runner.os }}-target-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-target-${{ matrix.target }}--
+
       # ---------- End cache ----------
 
       # Linux 特有依赖
@@ -74,6 +75,8 @@ jobs:
       - name: Build geph5-client-gui
         run: |
           cargo build --release --manifest-path binaries/geph5-client-gui/Cargo.toml
+          # 调试：列出发布目录的内容，以确认构建是否成功
+          ls -alh binaries/geph5-client-gui/target/release
 
       # macOS 特有：打包成 .app
       - name: Bundle macOS app
@@ -94,10 +97,15 @@ jobs:
           mkdir -p "$ARTIFACT_DIR"
 
           BINARY_PATH="${{ github.workspace }}/binaries/geph5-client-gui/target/release"
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+
+          # 检查二进制文件是否存在
+          if [ -f "$BINARY_PATH/geph5-client-gui" ]; then
+            cp "$BINARY_PATH/geph5-client-gui" "$ARTIFACT_DIR/"
+          elif [ -f "$BINARY_PATH/geph5-client-gui.exe" ]; then
             cp "$BINARY_PATH/geph5-client-gui.exe" "$ARTIFACT_DIR/"
           else
-            cp "$BINARY_PATH/geph5-client-gui" "$ARTIFACT_DIR/"
+            echo "Error: Binary not found, skipping copy."
+            exit 1  # 如果找不到二进制文件，终止构建
           fi
 
       # 上传 artifact
