@@ -1,10 +1,9 @@
 name: Build Geph5 Client GUI
 
 on:
-  push:
+  workflow_dispatch:
     branches:
       - master
-  workflow_dispatch:
 
 jobs:
   build-gui:
@@ -90,10 +89,11 @@ jobs:
           cd binaries/geph5-client-gui
           cargo bundle --release
           mkdir -p ../../artifacts/${{ matrix.dir }}
-          mv target/release/bundle/osx/Geph5Client.app ../../artifacts/${{ matrix.dir }}/
+          # 注意：cargo-bundle 默认生成 Geph5.app，而不是 Geph5Client.app
+          mv target/release/bundle/osx/Geph5.app ../../artifacts/${{ matrix.dir }}/
           cd ../../artifacts/${{ matrix.dir }}
-          zip -r Geph5Client-macos.zip Geph5Client.app
-          rm -rf Geph5Client.app
+          zip -r Geph5-macos.zip Geph5.app
+          rm -rf Geph5.app
 
       # Linux / Windows：移动可执行文件到 artifacts 并压缩
       - name: Move binaries and zip
@@ -103,12 +103,12 @@ jobs:
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
             mv target/release/geph5-client-gui.exe artifacts/${{ matrix.dir }}/
             cd artifacts/${{ matrix.dir }}
-            zip Geph5Client-windows.zip geph5-client-gui.exe
+            zip Geph5-windows.zip geph5-client-gui.exe
             rm geph5-client-gui.exe
           elif [ "${{ matrix.os }}" == "ubuntu-24.04" ]; then
             mv target/release/geph5-client-gui artifacts/${{ matrix.dir }}/
             cd artifacts/${{ matrix.dir }}
-            zip Geph5Client-linux.zip geph5-client-gui
+            zip Geph5-linux.zip geph5-client-gui
             rm geph5-client-gui
           fi
 
