@@ -15,47 +15,17 @@ jobs:
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-musl
             dir: linux
-            type: desktop
           - os: ubuntu-24.04
             target: aarch64-unknown-linux-musl
             dir: linux-arm64
-            type: desktop
           # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             dir: windows
-            type: desktop
           # macOS
           - os: macos-latest
             target: x86_64-apple-darwin
             dir: macos
-            type: desktop
-          # iOS
-          - os: macos-latest
-            target: aarch64-apple-ios
-            dir: ios-arm64
-            type: mobile
-          - os: macos-latest
-            target: x86_64-apple-ios
-            dir: ios-sim
-            type: mobile
-          # Android
-          - os: ubuntu-24.04
-            target: aarch64-linux-android
-            dir: android-arm64
-            type: mobile
-          - os: ubuntu-24.04
-            target: armv7-linux-androideabi
-            dir: android-arm
-            type: mobile
-          - os: ubuntu-24.04
-            target: x86_64-linux-android
-            dir: android-x86_64
-            type: mobile
-          - os: ubuntu-24.04
-            target: i686-linux-android
-            dir: android-x86
-            type: mobile
 
     runs-on: ${{ matrix.os }}
 
@@ -91,19 +61,8 @@ jobs:
 
       # Linux 特有依赖
       - name: Install musl-tools (Linux)
-        if: ${{ matrix.os == 'ubuntu-24.04' && matrix.type == 'desktop' }}
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
         run: sudo apt-get install -y musl-tools
-
-      # Android 特有依赖
-      - name: Install Android NDK (Linux)
-        if: ${{ matrix.target contains 'android' }}
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 33
-          target: default
-          arch: x86_64
-          ndk: 25.2.9519653
-          force-avd-creation: false
 
       # 安装 Rust
       - name: Install Rust
@@ -122,44 +81,30 @@ jobs:
       # Build step
       - name: Build Geph5 client
         run: |
-          if [[ "${{ matrix.os }}" == "ubuntu-24.04" && "${{ matrix.target }}" == "aarch64-unknown-linux-musl" ]]; then
+          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-musl" ]]; then
             cross build --locked --release --target "${{ matrix.target }}" --manifest-path binaries/geph5-client/Cargo.toml
-          elif [[ "${{ matrix.target }}" == *"android"* ]]; then
-            cargo build --target "${{ matrix.target }}" --release --manifest-path binaries/geph5-client/Cargo.toml
           else
             cargo build --locked --release --target "${{ matrix.target }}" --features aws_lambda --manifest-path binaries/geph5-client/Cargo.toml
           fi
 
       # macOS 特有：cargo-bundle
-      - name: Install cargo-bundle (macOS desktop)
-        if: ${{ matrix.os == 'macos-latest' && matrix.type == 'desktop' }}
+      - name: Install cargo-bundle (macOS)
+        if: ${{ matrix.os == 'macos-latest' }}
         run: |
           if [ ! -f ~/.cargo/bin/cargo-bundle ]; then
             cargo install cargo-bundle --locked --version "=0.6.0" --force
           fi
 
-      # Move binaries / libraries to artifacts
+      # Move binaries to artifacts
       - name: Move build output to artifacts
         shell: bash
         run: |
           mkdir -p artifacts/${{ matrix.dir }}
-          case "${{ matrix.type }}" in
-            desktop)
-              BIN_NAME=geph5-client
-              [[ "${{ matrix.os }}" == "windows-latest" ]] && BIN_NAME=geph5-client.exe
-              mv target/${{ matrix.target }}/release/$BIN_NAME artifacts/${{ matrix.dir }}/
-              ;;
-            mobile)
-              # iOS static library
-              if [[ "${{ matrix.target }}" == *"apple-ios"* ]]; then
-                mv target/${{ matrix.target }}/release/libgeph5_client.a artifacts/${{ matrix.dir }}/ || true
-              fi
-              # Android shared library
-              if [[ "${{ matrix.target }}" == *"android"* ]]; then
-                mv target/${{ matrix.target }}/release/libgeph5_client.so artifacts/${{ matrix.dir }}/ || true
-              fi
-              ;;
-          esac
+          BIN_NAME=geph5-client
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            BIN_NAME=geph5-client.exe
+          fi
+          mv target/${{ matrix.target }}/release/$BIN_NAME artifacts/${{ matrix.dir }}/
 
       # Upload artifact
       - name: Upload artifact
