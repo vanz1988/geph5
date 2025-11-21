@@ -42,7 +42,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-registry-
 
-      - name: Cache cargo git index
+      - name: Cache cargo git
         uses: actions/cache@v4
         with:
           path: ~/.cargo/git
@@ -58,12 +58,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-target-${{ matrix.target }}--
 
-      # Linux 特有依赖
+      # ---------- OS-specific dependencies ----------
       - name: Install GUI dependencies (Linux)
         if: ${{ matrix.os == 'ubuntu-24.04' }}
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev pkg-config
 
-      # 安装 Rust
+      # ---------- Install Rust ----------
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -72,15 +72,14 @@ jobs:
           override: true
           target: ${{ matrix.target }}
 
-      # 构建 GUI 客户端
+      # ---------- Build GUI ----------
       - name: Build geph5-client-gui
         shell: bash
         run: |
-          WORKSPACE_DIR="${{ github.workspace }}"
-          cd "$WORKSPACE_DIR/binaries/geph5-client-gui"
+          cd binaries/geph5-client-gui
           cargo build --release
 
-      # macOS 特有：打包 .app 并压缩
+      # ---------- macOS bundle ----------
       - name: Bundle macOS app
         if: ${{ matrix.os == 'macos-latest' }}
         shell: bash
@@ -89,36 +88,37 @@ jobs:
           cd "$WORKSPACE_DIR/binaries/geph5-client-gui"
           ARTIFACT_DIR="$WORKSPACE_DIR/artifacts/${{ matrix.dir }}"
           mkdir -p "$ARTIFACT_DIR"
+
+          # 安装 cargo-bundle
           cargo install cargo-bundle --locked --version "=0.6.0" || true
+
+          # 打包 .app
           cargo bundle --release
-          APP_SRC="$WORKSPACE_DIR/binaries/geph5-client-gui/target/release/bundle/osx/Geph5.app"
-          ZIP_NAME="Geph5-${{ matrix.dir }}-${{ matrix.arch }}.zip"
+
+          # 拷贝生成的 .app 到 artifact 目录
+          APP_SRC="$WORKSPACE_DIR/target/release/bundle/osx/Geph5.app"
           cp -r "$APP_SRC" "$ARTIFACT_DIR/Geph5.app"
+
+          # 压缩成 zip
           cd "$ARTIFACT_DIR"
+          ZIP_NAME="Geph5-${{ matrix.dir }}-${{ matrix.arch }}.zip"
           zip -r "$ZIP_NAME" Geph5.app
           rm -rf Geph5.app
 
-      # Linux / Windows：移动可执行文件到 artifacts 并压缩
+      # ---------- Linux / Windows move binary ----------
       - name: Move binaries to artifacts
+        if: ${{ matrix.os != 'macos-latest' }}
         shell: bash
         run: |
-          WORKSPACE_DIR="${{ github.workspace }}"
-          ARTIFACT_DIR="$WORKSPACE_DIR/artifacts/${{ matrix.dir }}"
+          ARTIFACT_DIR="${{ github.workspace }}/artifacts/${{ matrix.dir }}"
           mkdir -p "$ARTIFACT_DIR"
-          ZIP_NAME="Geph5-${{ matrix.dir }}-${{ matrix.arch }}.zip"
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            cp "$WORKSPACE_DIR/target/release/geph5-client-gui.exe" "$ARTIFACT_DIR/"
-            cd "$ARTIFACT_DIR"
-            zip -r "$ZIP_NAME" geph5-client-gui.exe
-            rm geph5-client-gui.exe
-          elif [ "${{ matrix.os }}" == "ubuntu-24.04" ]; then
-            cp "$WORKSPACE_DIR/target/release/geph5-client-gui" "$ARTIFACT_DIR/"
-            cd "$ARTIFACT_DIR"
-            zip -r "$ZIP_NAME" geph5-client-gui
-            rm geph5-client-gui
+            cp binaries/geph5-client-gui/target/release/geph5-client-gui.exe "$ARTIFACT_DIR/"
+          else
+            cp binaries/geph5-client-gui/target/release/geph5-client-gui "$ARTIFACT_DIR/"
           fi
 
-      # 上传 artifact
+      # ---------- Upload artifact ----------
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
