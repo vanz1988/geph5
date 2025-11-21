@@ -79,11 +79,12 @@ jobs:
       - name: Bundle macOS app
         if: ${{ matrix.os == 'macos-latest' }}
         run: |
+          cd binaries/geph5-client-gui
           cargo install cargo-bundle --locked --version "=0.6.0" || true
-          cargo bundle --release --manifest-path binaries/geph5-client-gui/Cargo.toml
-          mkdir -p "${{ github.workspace }}/artifacts/${{ matrix.dir }}"
-          # cargo-bundle 输出的 .app 名称可能和包名不同，这里用实际路径
-          cp -R target/release/bundle/osx/Geph5.app "${{ github.workspace }}/artifacts/${{ matrix.dir }}/"
+          cargo bundle --release
+          cd ../..
+          mkdir -p artifacts/${{ matrix.dir }}
+          cp -R binaries/geph5-client-gui/target/release/bundle/osx/Geph5.app artifacts/${{ matrix.dir }}/
 
       # Linux / Windows：移动可执行文件到 artifacts
       - name: Move binaries to artifacts
