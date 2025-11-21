@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master
-  workflow_dispatch:  # 支持手动触发
+  workflow_dispatch:
 
 jobs:
   build-client:
@@ -33,7 +33,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ---------- Rust / Cargo cache ----------
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
@@ -57,14 +56,12 @@ jobs:
           key: ${{ runner.os }}-target-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-target-${{ matrix.target }}--
-      # ---------- End cache ----------
 
       # Linux 特有依赖
       - name: Install musl-tools (Linux)
         if: ${{ matrix.os == 'ubuntu-24.04' }}
         run: sudo apt-get install -y musl-tools
 
-      # 安装 Rust
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -73,21 +70,19 @@ jobs:
           override: true
           target: ${{ matrix.target }}
 
-      # 安装 cross 用于 Linux aarch64
       - name: Install cross (Linux aarch64)
         if: ${{ matrix.target == 'aarch64-unknown-linux-musl' }}
         run: cargo install cross --locked
 
-      # Build step
       - name: Build Geph5 client
+        shell: bash  # 强制使用 bash
         run: |
-          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-musl" ]]; then
+          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ]; then
             cross build --locked --release --target "${{ matrix.target }}" --manifest-path binaries/geph5-client/Cargo.toml
           else
             cargo build --locked --release --target "${{ matrix.target }}" --features aws_lambda --manifest-path binaries/geph5-client/Cargo.toml
           fi
 
-      # macOS 特有：cargo-bundle
       - name: Install cargo-bundle (macOS)
         if: ${{ matrix.os == 'macos-latest' }}
         run: |
@@ -95,18 +90,16 @@ jobs:
             cargo install cargo-bundle --locked --version "=0.6.0" --force
           fi
 
-      # Move binaries to artifacts
       - name: Move build output to artifacts
-        shell: bash
+        shell: bash  # 强制使用 bash
         run: |
           mkdir -p artifacts/${{ matrix.dir }}
           BIN_NAME=geph5-client
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
             BIN_NAME=geph5-client.exe
           fi
           mv target/${{ matrix.target }}/release/$BIN_NAME artifacts/${{ matrix.dir }}/
 
-      # Upload artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
