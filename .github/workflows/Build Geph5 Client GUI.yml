@@ -76,15 +76,17 @@ jobs:
         run: |
           cargo build --release --manifest-path binaries/geph5-client-gui/Cargo.toml
 
-      # macOS 特有：打包成 .app
-      - name: Bundle macOS app
-        if: ${{ matrix.os == 'macos-latest' }}
-        shell: bash
-        run: |
-          cargo install cargo-bundle --locked --version "=0.6.0" || true
-          cargo bundle --release --manifest-path binaries/geph5-client-gui/Cargo.toml
-          mkdir -p artifacts/${{ matrix.dir }}
-          mv target/release/bundle/osx/Geph5Client.app artifacts/${{ matrix.dir }}/
+# macOS 特有：打包成 .app
+- name: Bundle macOS app
+  if: ${{ matrix.os == 'macos-latest' }}
+  shell: bash
+  run: |
+    cargo install cargo-bundle --locked --version "=0.6.0" || true
+    cd binaries/geph5-client-gui
+    cargo bundle --release
+    mkdir -p ../../artifacts/${{ matrix.dir }}
+    mv target/release/bundle/osx/Geph5Client.app ../../artifacts/${{ matrix.dir }}/
+
 
       # Linux / Windows：移动可执行文件到 artifacts
       - name: Move binaries to artifacts
