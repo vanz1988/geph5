@@ -1,7 +1,7 @@
 name: Build and Upload
 
 on:
-  push:
+  workflow_dispatch:
     branches:
       - master
 
